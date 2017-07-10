@@ -1,0 +1,94 @@
+---
+title: "Human Activity Recognition"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+In this document, we will try to predict the manner in which 6 participants did their barbell lift, we know each participant preform different way and we will use the PML data which is based on movement accelerometers in order to predict the result for unknow test data.
+
+__________
+
+
+## Load Data
+
+First step, downloading and loading the data. We will remove all the variables that have only one value, for the most part because they are NA or just "no", by any case all variable that has only one value doesn't contribute to our prediction. Also, we will remove the first two variables since they are already "predict" the answer (class is always the same for each user, same go for 'X' variable)
+
+
+```{r loadData}
+library(caret)
+
+pmlTesting <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+pmlTraining <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+
+#We will select only the columns that have more than 1 value.
+pmlTesting<- pmlTesting[,sapply(pmlTesting,function(x) length(unique(x))>1)]
+#We will not use the first two variables
+pmlTesting <- pmlTesting[,3:58]
+
+pmlTraining <-cbind(pmlTraining[,names(pmlTesting)],classe=pmlTraining[,"classe"])
+```
+
+## Split the Data
+
+We will split the training data into training 70% and testing 30% to test our models.
+
+```{r splitData}
+
+set.seed(111)
+inTrain <- createDataPartition(y=pmlTraining$classe,p=0.7,list=FALSE)
+
+training <- pmlTraining[inTrain,]
+testing <-  pmlTraining[-inTrain,]
+
+```
+
+## Model fit
+
+We will fit our training data for 3 models, Gradient Boosting, Random Forest and Linear Discriminant Analysis.
+
+```{r modelFit,include=FALSE}
+fitGBM<- train(classe~.,data = training,method="gbm",verbose=FALSE)
+fitRF <- train(classe~.,data = training,method="rf",verbose=FALSE)
+fitLDA <- train(classe~.,data = training,method="lda",verbose=FALSE)
+
+
+```
+
+
+## Predict
+
+We will predict classe variable for out testing data
+
+```{r predictAndCompare}
+predictGBM <- predict(fitGBM,testing)
+predictRF <-  predict(fitRF,testing)
+predictLDA <-  predict(fitLDA,testing)
+
+accuracyGBM <- confusionMatrix(predictGBM,testing$classe)$overall['Accuracy']
+accuracyRF <- confusionMatrix(predictRF,testing$classe)$overall['Accuracy']
+accuracyLDA <- confusionMatrix(predictLDA,testing$classe)$overall['Accuracy']
+
+
+
+```
+
+The Accuracy for Gradient Boosting model is - `r accuracyGBM`  
+The Accuracy for Random Forest model is - `r accuracyRF`  
+The Accuracy for Linear Discriminant Analysis model is - `r accuracyLDA`
+
+_____________
+
+We can see that for random forest model we got accuracy of more than 99%, cross-validation is estimated internally so a separate test set to obtain the unbiased estimate of the test set error is not needed. that's means that we don't need to do any further analysis and we can use this model to predict our unknown testing data.
+
+
+```{r finalPrediction}
+predict(fitRF,pmlTesting)
+
+
+```
+
